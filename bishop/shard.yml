@@ -1,0 +1,21 @@
+name: bishop
+version: 0.1.0
+
+authors:
+  - actualaardvark <114784410+actualaardvark@users.noreply.github.com>
+
+targets:
+  bishop:
+    main: src/bishop.cr
+
+dependencies:
+  kemal:
+    github: kemalcr/kemal
+  sqlite3:
+    github: crystal-lang/crystal-sqlite3
+  hardware:
+    github: crystal-community/hardware
+
+crystal: ">= 1.16.3"
+
+license: MIT

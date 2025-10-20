@@ -1,0 +1,9 @@
+name: knight
+version: 0.1.0
+
+authors:
+  - actualaardvark <114784410+actualaardvark@users.noreply.github.com>
+
+crystal: '>= 1.16.3'
+
+license: MIT
