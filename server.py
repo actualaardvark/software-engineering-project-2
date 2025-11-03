@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
 def receive_html():
-    """Receive HTML content and save it to a file"""
+    # Receive HTML content and save it to a file
     html_content = request.data.decode('utf-8')
 
     # Save to output directory
@@ -17,6 +17,7 @@ def receive_html():
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     output_path = os.path.join(output_dir, f'report_{timestamp}.html')
 
+    # Save html file
     with open(output_path, 'w') as f:
         f.write(html_content)
 

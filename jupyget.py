@@ -28,6 +28,7 @@ def install_notebook_dependencies(notebook_path):
     
     packages = [package_map.get(imp, imp) for imp in imports]
     
+    # Install all required packages with pip
     subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + packages)
 
 def jupyget(notebook_path: str, server_url: str = None):
@@ -52,4 +53,3 @@ def jupyget(notebook_path: str, server_url: str = None):
         response.raise_for_status()
         print(f"Successfully sent HTML report to {server_url} (Status: {response.status_code})")
 
-jupyget("test.ipynb", "localhost:3000")
