@@ -4,12 +4,37 @@ import subprocess
 import sys
 import os
 import requests
+import importlib.metadata
+
+def get_package_name(module_name):
+    """Automatically map module name to PyPI package name."""
+    # Common edge cases that can't be auto-detected
+    fallback_map = {
+        'cv2': 'opencv-python',
+        'PIL': 'Pillow',
+    }
+
+    if module_name in fallback_map:
+        return fallback_map[module_name]
+
+    try:
+        # Try to get the distribution for the module
+        return importlib.metadata.distribution(module_name).metadata['Name']
+    except importlib.metadata.PackageNotFoundError:
+        # Handle submodules (e.g., 'sklearn.metrics' -> 'scikit-learn')
+        try:
+            base_module = module_name.split('.')[0]
+            return importlib.metadata.distribution(base_module).metadata['Name']
+        except:
+            pass
+
+    return module_name  # Fallback to original name
 
 def install_notebook_dependencies(notebook_path):
     # Parse notebook
     with open(notebook_path, 'r') as f:
         notebook = json.load(f)
-    
+
     # Extract imports from code cells
     imports = set()
     for cell in notebook.get('cells', []):
@@ -18,16 +43,10 @@ def install_notebook_dependencies(notebook_path):
             # Find imports: "import X" or "from X import"
             imports.update(re.findall(r'^\s*import\s+(\w+)', source, re.MULTILINE))
             imports.update(re.findall(r'^\s*from\s+(\w+)', source, re.MULTILINE))
-    
-    # Map import names to package names
-    package_map = {
-        'sklearn': 'scikit-learn',
-        'cv2': 'opencv-python',
-        'PIL': 'Pillow',
-    }
-    
-    packages = [package_map.get(imp, imp) for imp in imports]
-    
+
+    # Automatically map import names to package names
+    packages = [get_package_name(imp) for imp in imports]
+
     # Install all required packages with pip
     subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + packages)
 
