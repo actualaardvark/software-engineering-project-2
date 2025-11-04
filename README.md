@@ -41,5 +41,3 @@ Then, run the main.py program:
 python3 main.py
 ```
 The HTML report will then be sent to the `received_reports` folder. 
-
-TODO: Run code
