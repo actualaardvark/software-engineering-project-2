@@ -4,7 +4,7 @@ TODO: Make sure to implement "code font" for keywords in this README
 
 ## jupyget
 
-The built-in jupyget module is used for sending HTML reports of jupyter notebooks to specified servers.
+The built-in `jupyget` module is used for sending HTML reports of jupyter notebooks to specified servers.
 
 ## install_notebook_dependencies(notebook_path)
 
