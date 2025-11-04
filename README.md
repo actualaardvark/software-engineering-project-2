@@ -4,8 +4,6 @@
 
 The built-in `jupyget` module is used for sending HTML reports of jupyter notebooks to specified servers.
 
-TODO: add get package name to README
-
 ## `get_package_name(module_name)`
 
 This function takes in module names as input and outputs their corresponding library names. The process of this function is as follows:
