@@ -5,6 +5,9 @@ import sys
 import os
 import requests
 import importlib.metadata
+import venv
+import tempfile
+import shutil
 
 def get_package_name(module_name):
     """Automatically map module name to PyPI package name."""
@@ -30,7 +33,8 @@ def get_package_name(module_name):
 
     return module_name  # Fallback to original name
 
-def install_notebook_dependencies(notebook_path):
+def install_notebook_dependencies(notebook_path, pip_executable):
+    """Install notebook dependencies using a specific pip executable."""
     # Parse notebook
     with open(notebook_path, 'r') as f:
         notebook = json.load(f)
@@ -47,28 +51,88 @@ def install_notebook_dependencies(notebook_path):
     # Automatically map import names to package names
     packages = [get_package_name(imp) for imp in imports]
 
-    # Install all required packages with pip
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + packages)
+    # Install all required packages with pip in the virtual environment
+    if packages:
+        subprocess.check_call([pip_executable, 'install'] + packages)
 
 def jupyget(notebook_path: str, server_url: str = None):
-    install_notebook_dependencies(notebook_path)
+    """
+    Execute a Jupyter notebook in an isolated virtual environment and generate an HTML report.
 
-    # Generate HTML report
-    os.system("jupyter nbconvert --to html  --execute " + notebook_path)
+    Args:
+        notebook_path: Path to the Jupyter notebook (.ipynb file)
+        server_url: Optional URL to POST the generated HTML report to
+    """
+    # Create a temporary directory for the virtual environment
+    venv_dir = tempfile.mkdtemp(prefix='jupyget_venv_')
 
-    # Determine the output HTML file path
-    html_path = notebook_path.rsplit('.', 1)[0] + '.html'
+    try:
+        print(f"Creating virtual environment at {venv_dir}...")
 
-    # If server URL is provided, send POST request
-    if server_url:
-        # Add http:// scheme if not present
-        if not server_url.startswith(('http://', 'https://')):
-            server_url = f'http://{server_url}'
+        # Create virtual environment
+        venv.create(venv_dir, with_pip=True)
 
-        with open(html_path, 'r') as f:
-            html_content = f.read()
+        # Determine paths to executables in the virtual environment
+        if os.name == 'nt':  # Windows
+            python_executable = os.path.join(venv_dir, 'Scripts', 'python.exe')
+            pip_executable = os.path.join(venv_dir, 'Scripts', 'pip.exe')
+        else:  # Unix/Linux/MacOS
+            python_executable = os.path.join(venv_dir, 'bin', 'python')
+            pip_executable = os.path.join(venv_dir, 'bin', 'pip')
 
-        response = requests.post(server_url, data=html_content, headers={'Content-Type': 'text/html'})
-        response.raise_for_status()
-        print(f"Successfully sent HTML report to {server_url} (Status: {response.status_code})")
+        print("Installing Jupyter and nbconvert in virtual environment...")
+        # Install jupyter, nbconvert, and ipykernel in the virtual environment
+        subprocess.check_call([pip_executable, 'install', 'jupyter', 'nbconvert', 'ipykernel'])
+
+        print("Installing notebook dependencies...")
+        # Install notebook-specific dependencies
+        install_notebook_dependencies(notebook_path, pip_executable)
+
+        print("Creating Jupyter kernel...")
+        # Create a kernel that points to this virtual environment
+        kernel_name = f"jupyget_kernel_{os.path.basename(venv_dir)}"
+        subprocess.check_call([
+            python_executable, '-m', 'ipykernel', 'install',
+            '--user', '--name', kernel_name,
+            '--display-name', f'Python (jupyget)'
+        ])
+
+        print(f"Executing notebook with kernel {kernel_name}...")
+        # Generate HTML report using the virtual environment's kernel
+        subprocess.check_call([
+            pip_executable.replace('pip', 'jupyter'),
+            'nbconvert', '--to', 'html', '--execute',
+            '--ExecutePreprocessor.kernel_name=' + kernel_name,
+            notebook_path
+        ])
+
+        # Determine the output HTML file path
+        html_path = notebook_path.rsplit('.', 1)[0] + '.html'
+        print(f"HTML report generated: {html_path}")
+
+        # If server URL is provided, send POST request
+        if server_url:
+            # Add http:// scheme if not present
+            if not server_url.startswith(('http://', 'https://')):
+                server_url = f'http://{server_url}'
+
+            print(f"Sending report to {server_url}...")
+            with open(html_path, 'r') as f:
+                html_content = f.read()
+
+            response = requests.post(server_url, data=html_content, headers={'Content-Type': 'text/html'})
+            response.raise_for_status()
+            print(f"Successfully sent HTML report to {server_url} (Status: {response.status_code})")
+
+        # Clean up the kernel
+        print(f"Cleaning up kernel {kernel_name}...")
+        subprocess.run([
+            pip_executable.replace('pip', 'jupyter'),
+            'kernelspec', 'remove', '-f', kernel_name
+        ], capture_output=True)
+
+    finally:
+        # Clean up the virtual environment
+        print(f"Cleaning up virtual environment...")
+        shutil.rmtree(venv_dir, ignore_errors=True)
 
